@@ -10,8 +10,6 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
 import time
-from tensorflow.models.rnn import seq2seq
-from tensorflow.models.rnn import rnn_cell
 import math
 import socket
 if 'rob-laptop' in socket.gethostname():
@@ -51,7 +49,7 @@ cell_out_size = cell_size
 glimpses = 6
 n_classes = 10
 
-lr = 1e-3
+lr = 1e-4
 max_iters = 1000000
 
 mnist_size = 28
@@ -64,6 +62,17 @@ glimpse_images = [] # to show in window
 def weight_variable(shape):
   initial = tf.truncated_normal(shape, stddev=1.0/shape[0]) # for now
   return tf.Variable(initial)
+
+
+def linear(x,output_dim):
+  """ Function to compute linear transforms
+  when x is in [batch_size, some_dim] then output will be in [batch_size, output_dim]
+  Be sure to use right variable scope n calling this function
+  """
+  w=tf.get_variable("w", [x.get_shape()[1], output_dim])
+  b=tf.get_variable("b", [output_dim], initializer=tf.constant_initializer(0.0))
+  return tf.nn.xw_plus_b(x,w,b)
+
 
 def glimpseSensor(img, normLoc):
   loc = ((normLoc + 1) / 2) * mnist_size # normLoc coordinates are between -1 and 1
@@ -121,20 +130,24 @@ def get_glimpse(loc):
     glimpse_input = tf.reshape(glimpse_input, (batch_size, totalSensorBandwidth))
 
     l_hl = weight_variable((2, hl_size))
+    l_hl_bias = tf.Variable(tf.constant(0.1, shape=[hl_size]))
     glimpse_hg = weight_variable((totalSensorBandwidth, hg_size))
+    glimpse_hg_bias = tf.Variable(tf.constant(0.1,shape=[hg_size]))
 
-    hg = tf.nn.relu(tf.matmul(glimpse_input, glimpse_hg))
-    hl = tf.nn.relu(tf.matmul(loc, l_hl))
+    hg = tf.nn.relu(tf.nn.xw_plus_b(glimpse_input, glimpse_hg,glimpse_hg_bias))
+    hl = tf.nn.relu(tf.nn.xw_plus_b(loc, l_hl,l_hl_bias))
 
     hg_g = weight_variable((hg_size, g_size))
+    hg_g_bias = tf.Variable(tf.constant(0.1,shape=[g_size]))
     hl_g = weight_variable((hl_size, g_size))
+    hl_g_bias = tf.Variable(tf.constant(0.1,shape=[g_size]))
 
-    g = tf.nn.relu(tf.matmul(hg, hg_g) + tf.matmul(hl, hl_g))
+    g = tf.nn.relu(tf.nn.xw_plus_b(hg, hg_g,hg_g_bias) + tf.nn.xw_plus_b(hl, hl_g,hl_g_bias))
 
     return g
 
 def get_next_input(output, i):
-    mean_loc = tf.tanh(tf.matmul(output, h_l_out))
+    mean_loc = tf.tanh(tf.nn.xw_plus_b(output, h_l_out,b_l_out))
     mean_locs.append(mean_loc)
 
     sample_loc = mean_loc + tf.random_normal(mean_loc.get_shape(), 0, loc_sd)
@@ -148,14 +161,14 @@ def model():
 
     initial_glimpse = get_glimpse(initial_loc)
 
-    lstm_cell = rnn_cell.LSTMCell(cell_size, g_size, num_proj=cell_out_size)
+    lstm_cell = tf.nn.rnn_cell.LSTMCell(cell_size, g_size, num_proj=cell_out_size)
 
     initial_state = lstm_cell.zero_state(batch_size, tf.float32)
 
     inputs = [initial_glimpse]
     inputs.extend([0] * (glimpses - 1))
 
-    outputs, _ = seq2seq.rnn_decoder(inputs, initial_state, lstm_cell, loop_function=get_next_input)
+    outputs, _ = tf.nn.seq2seq.rnn_decoder(inputs, initial_state, lstm_cell, loop_function=get_next_input)
     get_next_input(outputs[-1], 0)
 
     return outputs
@@ -179,12 +192,13 @@ def calc_reward(outputs):
     outputs = outputs[-1] # look at ONLY THE END of the sequence
     outputs = tf.reshape(outputs, (batch_size, cell_out_size))
     h_a_out = weight_variable((cell_out_size, n_classes))
+    b_a_out = tf.Variable(tf.constant(0.1,shape=[n_classes]))
 
-    p_y = tf.nn.softmax(tf.matmul(outputs, h_a_out))
-    max_p_y = tf.arg_max(p_y, 1)
-    correct_y = tf.cast(labels_placeholder, tf.int64)
+    a_y = tf.nn.xw_plus_b(outputs, h_a_out,b_a_out)
+    cost_sm = tf.nn.sparse_softmax_cross_entropy_with_logits(a_y, labels_placeholder)
+    max_p_y = tf.arg_max(a_y, 1)
 
-    R = tf.cast(tf.equal(max_p_y, correct_y), tf.float32) # reward per example
+    R = tf.cast(tf.equal(max_p_y, labels_placeholder), tf.float32) # reward per example
 
     reward = tf.reduce_mean(R) # overall reward
 
@@ -192,23 +206,24 @@ def calc_reward(outputs):
     p_loc = tf.reshape(p_loc, (batch_size, glimpses * 2))
 
     R = tf.reshape(R, (batch_size, 1))
-    J = tf.concat(1, [tf.log(p_y + 1e-5) * onehot_labels_placeholder, tf.log(p_loc + 1e-5) * R])
-    J = tf.reduce_sum(J, 1)
+    J = tf.log(p_loc + 1e-9) * R
+    J = tf.reduce_sum(J, 1) - cost_sm
     J = tf.reduce_mean(J, 0)
     cost = -J
 
     optimizer = tf.train.AdamOptimizer(lr)
     train_op = optimizer.minimize(cost)
 
-    return cost, reward, max_p_y, correct_y, train_op
+    return cost, reward, max_p_y, train_op
 
 with tf.Graph().as_default():
     labels = tf.placeholder("float32", shape=[batch_size, n_classes])
     inputs_placeholder = tf.placeholder(tf.float32, shape=(batch_size, 28 * 28), name="images")
-    labels_placeholder = tf.placeholder(tf.float32, shape=(batch_size), name="labels")
+    labels_placeholder = tf.placeholder(tf.int64, shape=(batch_size), name="labels")
     onehot_labels_placeholder = tf.placeholder(tf.float32, shape=(batch_size, 10), name="oneHotLabels")
 
     h_l_out = weight_variable((cell_out_size, 2))
+    b_l_out = tf.Variable(tf.constant(0.1,shape=[2]))
     loc_mean = weight_variable((batch_size, glimpses, 2))
 
     outputs = model()
@@ -220,7 +235,7 @@ with tf.Graph().as_default():
     mean_locs = tf.reshape(mean_locs, (batch_size, glimpses, 2))
     glimpse_images = tf.concat(0, glimpse_images)
 
-    cost, reward, predicted_labels, correct_labels, train_op = calc_reward(outputs)
+    cost, reward, predicted_labels, train_op = calc_reward(outputs)
     tf.scalar_summary("reward", reward)
     tf.scalar_summary("cost", cost)
 
@@ -248,7 +263,7 @@ with tf.Graph().as_default():
 
         for i in xrange(batches_in_epoch):
             nextX, nextY = dataset.test.next_batch(batch_size)
-            feed_dict = {inputs_placeholder: nextX, labels_placeholder: nextY, onehot_labels_placeholder: dense_to_one_hot(nextY)}
+            feed_dict = {inputs_placeholder: nextX, labels_placeholder: nextY}
             r = sess.run(reward, feed_dict=feed_dict)
             accuracy += r
 
@@ -269,17 +284,18 @@ with tf.Graph().as_default():
             plt.subplots_adjust(top=0.7)
 
             plotImgs = []
-
+        reward_ma = 0.0
+        cost_ma = 0.0
         for step in xrange(start_step + 1, max_iters):
             start_time = time.time()
 
             nextX, nextY = dataset.train.next_batch(batch_size)
-            feed_dict = {inputs_placeholder: nextX, labels_placeholder: nextY, onehot_labels_placeholder: dense_to_one_hot(nextY)}
-            fetches = [train_op, cost, reward, predicted_labels, correct_labels, glimpse_images]
+            feed_dict = {inputs_placeholder: nextX, labels_placeholder: nextY}
+            fetches = [train_op, cost, reward, predicted_labels, glimpse_images]
 
             results = sess.run(fetches, feed_dict=feed_dict)
             _, cost_fetched, reward_fetched, prediction_labels_fetched,\
-                correct_labels_fetched, f_glimpse_images_fetched = results
+                f_glimpse_images_fetched = results
 
             duration = time.time() - start_time
 
@@ -303,7 +319,7 @@ with tf.Graph().as_default():
                         # display first in mini-batch
                         for y in xrange(glimpses):
                             txt.set_text('FINAL PREDICTION: %i\nTRUTH: %i\nSTEP: %i/%i'
-                                % (prediction_labels_fetched[0], correct_labels_fetched[0], (y + 1), glimpses))
+                                % (prediction_labels_fetched[0], nextY[0], (y + 1), glimpses))
 
                             for x in xrange(depth):
                                 plt.subplot(depth, 1, x + 1)
@@ -322,7 +338,7 @@ with tf.Graph().as_default():
                             time.sleep(0.1)
                             plt.pause(0.0001)
                     else:
-                        txt.set_text('PREDICTION: %i\nTRUTH: %i' % (prediction_labels_fetched[0], correct_labels_fetched[0]))
+                        txt.set_text('PREDICTION: %i\nTRUTH: %i' % (prediction_labels_fetched[0], nextY[0]))
                         for x in xrange(depth):
                             for y in xrange(glimpses):
                                 plt.subplot(depth, glimpses, x * glimpses + y + 1)
@@ -334,8 +350,9 @@ with tf.Graph().as_default():
                         plt.pause(0.0001)
 
                 ################################
-
-                print('Step %d: cost = %.5f reward = %.5f (%.3f sec)' % (step, cost_fetched, reward_fetched, duration))
+                reward_ma = 0.8*reward_ma + 0.2*reward_fetched
+                cost_ma = 0.8*cost_ma + 0.2*cost_fetched
+                print('Step %d: cost = %5.2f(%5.2f) reward = %4.2f(%4.2f) (%.3f sec)' % (step, cost_fetched,cost_ma, reward_fetched,reward_ma, duration))
 
                 summary_str = sess.run(summary_op, feed_dict=feed_dict)
                 summary_writer.add_summary(summary_str, step)
