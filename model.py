@@ -7,18 +7,22 @@ Created on Wed Jul 20 20:28:57 2016
 
 import tensorflow as tf
 import math
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import time
 
 
 class Model():
   def __init__(self,config):
-    depth = config['depth'] # zooms
+    self.depth = config['depth'] # zooms
     min_radius = config['min_radius']
     max_radius = config['max_radius']
-    sensorBandwidth = config['sensorBandwidth'] # fixed resolution of sensor
-    sensorArea = sensorBandwidth**2
+    self.sensorBandwidth = config['sensorBandwidth'] # fixed resolution of sensor
+    sensorArea = self.sensorBandwidth**2
     channels = 1 # grayscale
-    totalSensorBandwidth = depth * sensorBandwidth * sensorBandwidth * channels
-    batch_size = config['batch_size']
+    totalSensorBandwidth = self.depth * self.sensorBandwidth * self.sensorBandwidth * channels
+    self.batch_size = config['batch_size']
 
     hg_size = 128
     hl_size = 128
@@ -26,7 +30,7 @@ class Model():
     cell_size = 256
     cell_out_size = cell_size
 
-    glimpses = config['glimpses']
+    self.glimpses = config['glimpses']
     n_classes = 10
 
     lr = 1e-4
@@ -58,12 +62,12 @@ class Model():
       loc = ((normLoc + 1) / 2) * mnist_size # normLoc coordinates are between -1 and 1
       loc = tf.cast(loc, tf.int32)
 
-      img = tf.reshape(img, (batch_size, mnist_size, mnist_size, channels))
+      img = tf.reshape(img, (self.batch_size, mnist_size, mnist_size, channels))
 
       zooms = []
 
       # process each image individually
-      for k in xrange(batch_size):
+      for k in xrange(self.batch_size):
         imgZooms = []
         one_img = img[k,:,:,:]
         offset = max_radius
@@ -72,7 +76,7 @@ class Model():
         one_img = tf.image.pad_to_bounding_box(one_img, offset, offset, \
             max_radius * 2 + mnist_size, max_radius * 2 + mnist_size)
 
-        for i in xrange(depth):
+        for i in xrange(self.depth):
           r = int(min_radius * (2 ** (i)))
 
           d_raw = 2 * r
@@ -91,8 +95,8 @@ class Model():
           zoom = tf.slice(one_img2, adjusted_loc, d)
 
           # resize cropped image to (sensorBandwidth x sensorBandwidth)
-          zoom = tf.image.resize_bilinear(tf.reshape(zoom, (1, d_raw, d_raw, 1)), (sensorBandwidth, sensorBandwidth))
-          zoom = tf.reshape(zoom, (sensorBandwidth, sensorBandwidth))
+          zoom = tf.image.resize_bilinear(tf.reshape(zoom, (1, d_raw, d_raw, 1)), (self.sensorBandwidth, self.sensorBandwidth))
+          zoom = tf.reshape(zoom, (self.sensorBandwidth, self.sensorBandwidth))
           imgZooms.append(zoom)
 
         zooms.append(tf.pack(imgZooms))
@@ -106,7 +110,7 @@ class Model():
     def get_glimpse(loc):
       glimpse_input = sensor_glimpse(self.image, loc)
 
-      glimpse_input = tf.reshape(glimpse_input, (batch_size, totalSensorBandwidth))
+      glimpse_input = tf.reshape(glimpse_input, (self.batch_size, totalSensorBandwidth))
 
       l_hl = weight_variable((2, hl_size))
       l_hl_bias = tf.Variable(tf.constant(0.1, shape=[hl_size]))
@@ -141,21 +145,21 @@ class Model():
       a = -tf.square(sample - mean) / (2.0 * tf.square(loc_sd))
       return Z * tf.exp(a)
 
-    self.image = tf.placeholder(tf.float32, shape=(batch_size, 28 * 28), name="images")
-    self.labels = tf.placeholder(tf.int64, shape=(batch_size), name="labels")
+    self.image = tf.placeholder(tf.float32, shape=(self.batch_size, 28 * 28), name="images")
+    self.labels = tf.placeholder(tf.int64, shape=(self.batch_size), name="labels")
 
     h_l_out = weight_variable((cell_out_size, 2))
     b_l_out = tf.Variable(tf.constant(0.1,shape=[2]))
-    loc_mean = weight_variable((batch_size, glimpses, 2))
+    loc_mean = weight_variable((self.batch_size, self.glimpses, 2))
 
-    initial_loc = tf.random_uniform((batch_size, 2), minval=-1, maxval=1)
+    initial_loc = tf.random_uniform((self.batch_size, 2), minval=-1, maxval=1)
 
     initial_glimpse = get_glimpse(initial_loc)
     lstm_cell = tf.nn.rnn_cell.LSTMCell(cell_size, g_size, num_proj=cell_out_size)
-    initial_state = lstm_cell.zero_state(batch_size, tf.float32)
+    initial_state = lstm_cell.zero_state(self.batch_size, tf.float32)
 
     inputs = [initial_glimpse]
-    inputs.extend([0] * (glimpses - 1))
+    inputs.extend([0] * (self.glimpses - 1))
 
     outputs, _ = tf.nn.seq2seq.rnn_decoder(inputs, initial_state, lstm_cell, loop_function=get_next_input)
     get_next_input(outputs[-1], 0)
@@ -163,14 +167,14 @@ class Model():
 
     # convert list of tensors to one big tensor
     self.sampled_locs = tf.concat(0, self.sampled_locs)
-    self.sampled_locs = tf.reshape(self.sampled_locs, (batch_size, glimpses, 2))
+    self.sampled_locs = tf.reshape(self.sampled_locs, (self.batch_size, self.glimpses, 2))
     mean_locs = tf.concat(0, mean_locs)
-    mean_locs = tf.reshape(mean_locs, (batch_size, glimpses, 2))
+    mean_locs = tf.reshape(mean_locs, (self.batch_size, self.glimpses, 2))
     self.glimpse_images = tf.concat(0, self.glimpse_images)
 
 
     outputs = outputs[-1] # look at ONLY THE END of the sequence
-    outputs = tf.reshape(outputs, (batch_size, cell_out_size))
+    outputs = tf.reshape(outputs, (self.batch_size, cell_out_size))
     with tf.variable_scope('classification'):
       a_y = linear(outputs,n_classes)
     cost_sm = tf.nn.sparse_softmax_cross_entropy_with_logits(a_y, self.labels)
@@ -181,9 +185,9 @@ class Model():
     self.reward = tf.reduce_mean(R) # overall reward
 
     p_loc = gaussian_pdf(mean_locs, self.sampled_locs)
-    p_loc = tf.reshape(p_loc, (batch_size, glimpses * 2))
+    p_loc = tf.reshape(p_loc, (self.batch_size, self.glimpses * 2))
 
-    R = tf.reshape(R, (batch_size, 1))
+    R = tf.reshape(R, (self.batch_size, 1))
     J = tf.log(p_loc + 1e-9) * R
     J = tf.reduce_sum(J, 1) - cost_sm
     J = tf.reduce_mean(J, 0)
@@ -200,3 +204,46 @@ class Model():
     tf.scalar_summary("cost", self.cost)
 
     self.summary_op = tf.merge_all_summaries()
+
+  def draw_ram(self,f_glimpse_images_fetched,prediction_labels_fetched,sampled_locs_fetched,nextX,nextY):
+    fig = plt.figure()
+    txt = fig.suptitle("-", fontsize=36, fontweight='bold')
+    plt.ion()
+    plt.show()
+    plt.subplots_adjust(top=0.7)
+    plotImgs = []
+
+    f_glimpse_images = np.reshape(f_glimpse_images_fetched, (self.glimpses + 1, self.batch_size, self.depth, self.sensorBandwidth, self.sensorBandwidth)) #steps, THEN batch
+    fillList = False
+
+    if len(plotImgs) == 0:
+      fillList = True
+
+    # display first in mini-batch
+    for y in xrange(self.glimpses):
+      txt.set_text('FINAL PREDICTION: %i\nTRUTH: %i\nSTEP: %i/%i'
+          % (prediction_labels_fetched[0], nextY[0], (y + 1), self.glimpses))
+
+      for x in xrange(self.depth):
+        plt.subplot(self.depth, 2, x + 1)
+        if fillList:
+          plotImg = plt.imshow(f_glimpse_images[y, 0, x], cmap=plt.get_cmap('gray'), interpolation="nearest")
+          plotImg.autoscale()
+          plotImgs.append(plotImg)
+        else:
+          plotImgs[x].set_data(f_glimpse_images[y, 0, x])
+          plotImgs[x].autoscale()
+
+      fillList = False
+
+      ax = fig.add_subplot(324)
+      ax.imshow(np.reshape(nextX[0],(28,28)), cmap=plt.get_cmap('gray'))
+      ax.add_patch(patches.Rectangle((sampled_locs_fetched[0,y,:]+1)*14,5,5,fill=False,linestyle='solid',color='r'))
+
+      fig.canvas.draw()
+      fig.subplots_adjust(hspace=0)  #No horizontal space between subplots
+      fig.subplots_adjust(wspace=0)  #No vertical space between subplots
+      time.sleep(0.1)
+      plt.pause(0.0001)
+    ax.remove()
+    return

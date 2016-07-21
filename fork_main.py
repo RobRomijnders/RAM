@@ -69,13 +69,7 @@ if eval_only:
 else:
   summary_writer = tf.train.SummaryWriter("summary")
 
-  if draw:
-    fig = plt.figure()
-    txt = fig.suptitle("-", fontsize=36, fontweight='bold')
-    plt.ion()
-    plt.show()
-    plt.subplots_adjust(top=0.7)
-    plotImgs = []
+
   reward_ma = 0.0
   cost_ma = 0.0
   for step in xrange(start_step + 1, max_iters):
@@ -86,63 +80,15 @@ else:
     results = sess.run(fetches, feed_dict=feed_dict)
     _, cost_fetched, reward_fetched, prediction_labels_fetched, f_glimpse_images_fetched, sampled_locs_fetched = results
 
-    if step % 20 == 0:
-      if step % 1000 == 0:
-          if step % 5000 == 0:
-              evaluate()
-
-
-      ##### DRAW WINDOW ################
-
-      f_glimpse_images = np.reshape(f_glimpse_images_fetched, (glimpses + 1, batch_size, depth, sensorBandwidth, sensorBandwidth)) #steps, THEN batch
-
-      if draw:
-        if animate:
-          fillList = False
-          if len(plotImgs) == 0:
-            fillList = True
-
-          # display first in mini-batch
-          for y in xrange(glimpses):
-            txt.set_text('FINAL PREDICTION: %i\nTRUTH: %i\nSTEP: %i/%i'
-                % (prediction_labels_fetched[0], nextY[0], (y + 1), glimpses))
-
-            for x in xrange(depth):
-              plt.subplot(depth, 2, x + 1)
-              if fillList:
-                plotImg = plt.imshow(f_glimpse_images[y, 0, x], cmap=plt.get_cmap('gray'), interpolation="nearest")
-                plotImg.autoscale()
-                plotImgs.append(plotImg)
-              else:
-                plotImgs[x].set_data(f_glimpse_images[y, 0, x])
-                plotImgs[x].autoscale()
-
-            fillList = False
-
-            ax = fig.add_subplot(324)
-            ax.imshow(np.reshape(nextX[0],(28,28)), cmap=plt.get_cmap('gray'))
-            ax.add_patch(patches.Rectangle((sampled_locs_fetched[0,y,:]+1)*14,5,5,fill=False,linestyle='solid',color='r'))
-
-            fig.canvas.draw()
-            fig.subplots_adjust(hspace=0)  #No horizontal space between subplots
-            fig.subplots_adjust(wspace=0)  #No vertical space between subplots
-            time.sleep(0.1)
-            plt.pause(0.0001)
-        else:
-          txt.set_text('PREDICTION: %i\nTRUTH: %i' % (prediction_labels_fetched[0], nextY[0]))
-          for x in xrange(depth):
-            for y in xrange(glimpses):
-              plt.subplot(depth, glimpses, x * glimpses + y + 1)
-              plt.imshow(f_glimpse_images[y, 0, x], cmap=plt.get_cmap('gray'),
-                           interpolation="nearest")
-
-          plt.draw()
-          time.sleep(0.05)
-          plt.pause(0.0001)
-      ax.remove()
-      ################################
-      reward_ma = 0.8*reward_ma + 0.2*reward_fetched
-      cost_ma = 0.8*cost_ma + 0.2*cost_fetched
+    #Some moving averages
+    reward_ma = 0.9*reward_ma + 0.1*reward_fetched
+    cost_ma = 0.9*cost_ma + 0.1*cost_fetched
+    if step % 500 == 0:
+      if step % 5000 == 0:
+        evaluate()
+      if draw and animate:
+        plt.close('all')
+        model.draw_ram(f_glimpse_images_fetched,prediction_labels_fetched,sampled_locs_fetched,nextX,nextY)
       print('Step %6.0f: cost = %6.2f(%6.2f) reward = %4.1f(%4.2f) ' % (step, cost_fetched,cost_ma, reward_fetched,reward_ma))
 
       summary_str = sess.run(model.summary_op, feed_dict=feed_dict)
