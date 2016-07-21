@@ -11,10 +11,11 @@ import math
 
 class Model():
   def __init__(self,config):
-    minRadius = 4 # zooms -> minRadius * 2**<depth_level>
+    depth = config['depth'] # zooms
+    min_radius = config['min_radius']
+    max_radius = config['max_radius']
     sensorBandwidth = config['sensorBandwidth'] # fixed resolution of sensor
     sensorArea = sensorBandwidth**2
-    depth = config['depth'] # zooms
     channels = 1 # grayscale
     totalSensorBandwidth = depth * sensorBandwidth * sensorBandwidth * channels
     batch_size = config['batch_size']
@@ -34,7 +35,7 @@ class Model():
 
     loc_sd = 0.1
     mean_locs = []
-    sampled_locs = [] # ~N(mean_locs[.], loc_sd)
+    self.sampled_locs = [] # ~N(mean_locs[.], loc_sd)
     self.glimpse_images = [] # to show in window
 
 
@@ -65,7 +66,6 @@ class Model():
       for k in xrange(batch_size):
         imgZooms = []
         one_img = img[k,:,:,:]
-        max_radius = minRadius * (2 ** (depth - 1))
         offset = max_radius
 
         # pad image with zeros
@@ -73,7 +73,7 @@ class Model():
             max_radius * 2 + mnist_size, max_radius * 2 + mnist_size)
 
         for i in xrange(depth):
-          r = int(minRadius * (2 ** (i - 1)))
+          r = int(min_radius * (2 ** (i)))
 
           d_raw = 2 * r
           d = tf.constant(d_raw, shape=[1])
@@ -131,7 +131,7 @@ class Model():
 
       sample_loc = mean_loc + tf.random_normal(mean_loc.get_shape(), 0, loc_sd)
 
-      sampled_locs.append(sample_loc)
+      self.sampled_locs.append(sample_loc)
 
       return get_glimpse(sample_loc)
 
@@ -162,8 +162,8 @@ class Model():
 
 
     # convert list of tensors to one big tensor
-    sampled_locs = tf.concat(0, sampled_locs)
-    sampled_locs = tf.reshape(sampled_locs, (batch_size, glimpses, 2))
+    self.sampled_locs = tf.concat(0, self.sampled_locs)
+    self.sampled_locs = tf.reshape(self.sampled_locs, (batch_size, glimpses, 2))
     mean_locs = tf.concat(0, mean_locs)
     mean_locs = tf.reshape(mean_locs, (batch_size, glimpses, 2))
     self.glimpse_images = tf.concat(0, self.glimpse_images)
@@ -180,7 +180,7 @@ class Model():
 
     self.reward = tf.reduce_mean(R) # overall reward
 
-    p_loc = gaussian_pdf(mean_locs, sampled_locs)
+    p_loc = gaussian_pdf(mean_locs, self.sampled_locs)
     p_loc = tf.reshape(p_loc, (batch_size, glimpses * 2))
 
     R = tf.reshape(R, (batch_size, 1))

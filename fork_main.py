@@ -8,6 +8,7 @@ Created on Tue Jul 19 19:54:35 2016
 import tensorflow as tf
 #import tf_mnist_loader
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import numpy as np
 import time
 import sys
@@ -31,6 +32,8 @@ config['batch_size'] = batch_size = 10
 config['glimpses'] = glimpses = 6
 config['depth'] = depth = 3
 config['sensorBandwidth'] = sensorBandwidth = 8
+config['min_radius'] = min_radius = 2 # zooms -> min_radius * 2**<depth_level>
+config['max_radius'] = max_radius = min_radius * (2 ** (depth - 1))
 
 
 
@@ -78,10 +81,10 @@ else:
   for step in xrange(start_step + 1, max_iters):
     nextX, nextY = dataset.train.next_batch(batch_size)
     feed_dict = {model.image: nextX, model.labels: nextY}
-    fetches = [model.train_op, model.cost, model.reward, model.labels_pred, model.glimpse_images]
+    fetches = [model.train_op, model.cost, model.reward, model.labels_pred, model.glimpse_images, model.sampled_locs]
 
     results = sess.run(fetches, feed_dict=feed_dict)
-    _, cost_fetched, reward_fetched, prediction_labels_fetched, f_glimpse_images_fetched = results
+    _, cost_fetched, reward_fetched, prediction_labels_fetched, f_glimpse_images_fetched, sampled_locs_fetched = results
 
     if step % 20 == 0:
       if step % 1000 == 0:
@@ -105,10 +108,9 @@ else:
                 % (prediction_labels_fetched[0], nextY[0], (y + 1), glimpses))
 
             for x in xrange(depth):
-              plt.subplot(depth, 1, x + 1)
+              plt.subplot(depth, 2, x + 1)
               if fillList:
-                plotImg = plt.imshow(f_glimpse_images[y, 0, x], cmap=plt.get_cmap('gray'),
-                                     interpolation="nearest")
+                plotImg = plt.imshow(f_glimpse_images[y, 0, x], cmap=plt.get_cmap('gray'), interpolation="nearest")
                 plotImg.autoscale()
                 plotImgs.append(plotImg)
               else:
@@ -116,6 +118,10 @@ else:
                 plotImgs[x].autoscale()
 
             fillList = False
+
+            ax = fig.add_subplot(324)
+            ax.imshow(np.reshape(nextX[0],(28,28)), cmap=plt.get_cmap('gray'))
+            ax.add_patch(patches.Rectangle((sampled_locs_fetched[0,y,:]+1)*14,5,5,fill=False,linestyle='solid',color='r'))
 
             fig.canvas.draw()
             time.sleep(0.1)
@@ -131,7 +137,7 @@ else:
           plt.draw()
           time.sleep(0.05)
           plt.pause(0.0001)
-
+      ax.remove()
       ################################
       reward_ma = 0.8*reward_ma + 0.2*reward_fetched
       cost_ma = 0.8*cost_ma + 0.2*cost_fetched
