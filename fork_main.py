@@ -17,17 +17,14 @@ if 'rob-laptop' in socket.gethostname():
   sys.path.append('/home/rob/Dropbox/ml_projects/RAM/')
 elif 'rob-com' in socket.gethostname():
   data_directory = '/home/rob/Documents/RAM/MNIST'
+  sys.path.append('/home/rob/Documents/RAM/')
 
 
 #dataset = tf_mnist_loader.read_data_sets("mnist_data")
 from tensorflow.examples.tutorials import mnist
 from model import Model
 dataset = mnist.input_data.read_data_sets(data_directory, one_hot=False)
-save_dir = "save-3scales/"
-save_prefix = "save"
-start_step = 10000
-load_path = None
-#load_path = save_dir + save_prefix + str(start_step) + ".ckpt"
+start_step = 0
 max_iters = 1000000
 config = {}
 config['batch_size'] = batch_size = 10
@@ -88,7 +85,6 @@ else:
 
     if step % 20 == 0:
       if step % 1000 == 0:
-          #saver.save(sess, save_dir + save_prefix + str(step) + ".ckpt")
           if step % 5000 == 0:
               evaluate()
 
@@ -139,7 +135,7 @@ else:
       ################################
       reward_ma = 0.8*reward_ma + 0.2*reward_fetched
       cost_ma = 0.8*cost_ma + 0.2*cost_fetched
-      print('Step %d: cost = %5.2f(%5.2f) reward = %4.2f(%4.2f) ' % (step, cost_fetched,cost_ma, reward_fetched,reward_ma))
+      print('Step %6.0f: cost = %6.2f(%6.2f) reward = %4.1f(%4.2f) ' % (step, cost_fetched,cost_ma, reward_fetched,reward_ma))
 
       summary_str = sess.run(model.summary_op, feed_dict=feed_dict)
       summary_writer.add_summary(summary_str, step)

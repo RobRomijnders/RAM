@@ -126,7 +126,7 @@ class Model():
       return g
 
     def get_next_input(output, i):
-      mean_loc = tf.tanh(tf.nn.xw_plus_b(output, h_l_out,b_l_out))
+      mean_loc = tf.tanh(tf.nn.xw_plus_b(output, h_l_out,b_l_out))  # in[batch_size, 2]
       mean_locs.append(mean_loc)
 
       sample_loc = mean_loc + tf.random_normal(mean_loc.get_shape(), 0, loc_sd)
@@ -189,7 +189,10 @@ class Model():
     J = tf.reduce_mean(J, 0)
     self.cost = -J
 
-    optimizer = tf.train.AdamOptimizer(lr)
+    global_step = tf.Variable(0,trainable=False)
+    lrate = tf.train.exponential_decay(lr,global_step,1000,0.5,staircase=True)
+
+    optimizer = tf.train.AdamOptimizer(lrate)
     self.train_op = optimizer.minimize(self.cost)
 
 

@@ -1,3 +1,5 @@
 *.rob-laptop
 *.rob-com
 *.gz
+*.pyc
+*~
