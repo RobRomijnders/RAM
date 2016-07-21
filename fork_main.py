@@ -19,6 +19,7 @@ if 'rob-laptop' in socket.gethostname():
 elif 'rob-com' in socket.gethostname():
   data_directory = '/home/rob/Documents/RAM/MNIST'
   sys.path.append('/home/rob/Documents/RAM/')
+  save_dir = '/home/rob/Documents/RAM/canvas/'
 
 
 #dataset = tf_mnist_loader.read_data_sets("mnist_data")
@@ -68,14 +69,12 @@ if eval_only:
   evaluate()
 else:
   summary_writer = tf.train.SummaryWriter("summary")
-
-
   reward_ma = 0.0
   cost_ma = 0.0
   for step in xrange(start_step + 1, max_iters):
     nextX, nextY = dataset.train.next_batch(batch_size)
     feed_dict = {model.image: nextX, model.labels: nextY}
-    fetches = [model.train_op, model.cost, model.reward, model.labels_pred, model.glimpse_images, model.sampled_locs]
+    fetches = [model.train_op, model.cost, model.reward, model.labels_pred, model.glimpse_images, model.locs]
 
     results = sess.run(fetches, feed_dict=feed_dict)
     _, cost_fetched, reward_fetched, prediction_labels_fetched, f_glimpse_images_fetched, sampled_locs_fetched = results
@@ -88,10 +87,13 @@ else:
         evaluate()
       if draw and animate:
         plt.close('all')
-        model.draw_ram(f_glimpse_images_fetched,prediction_labels_fetched,sampled_locs_fetched,nextX,nextY)
+        model.draw_ram(f_glimpse_images_fetched,prediction_labels_fetched,sampled_locs_fetched,nextX,nextY,save_dir='/home/rob/Documents/RAM/canvas/')
       print('Step %6.0f: cost = %6.2f(%6.2f) reward = %4.1f(%4.2f) ' % (step, cost_fetched,cost_ma, reward_fetched,reward_ma))
 
       summary_str = sess.run(model.summary_op, feed_dict=feed_dict)
       summary_writer.add_summary(summary_str, step)
+
+#Now go to the directory and run  (after install ImageMagick)
+#  convert -delay 20 -loop 0 *.png RAM.gif
 
 sess.close()

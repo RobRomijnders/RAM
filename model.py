@@ -202,10 +202,13 @@ class Model():
 
     tf.scalar_summary("reward", self.reward)
     tf.scalar_summary("cost", self.cost)
-
     self.summary_op = tf.merge_all_summaries()
+    #prefix the initial loc
+    prefix = tf.expand_dims(initial_loc,1)
+    self.locs = tf.concat(1,[prefix,self.sampled_locs])
 
-  def draw_ram(self,f_glimpse_images_fetched,prediction_labels_fetched,sampled_locs_fetched,nextX,nextY):
+
+  def draw_ram(self,f_glimpse_images_fetched,prediction_labels_fetched,sampled_locs_fetched,nextX,nextY,save_dir = None):
     fig = plt.figure()
     txt = fig.suptitle("-", fontsize=36, fontweight='bold')
     plt.ion()
@@ -238,12 +241,14 @@ class Model():
 
       ax = fig.add_subplot(324)
       ax.imshow(np.reshape(nextX[0],(28,28)), cmap=plt.get_cmap('gray'))
-      ax.add_patch(patches.Rectangle((sampled_locs_fetched[0,y,:]+1)*14,5,5,fill=False,linestyle='solid',color='r'))
+      ax.add_patch(patches.Rectangle((sampled_locs_fetched[0,y,:]+1)*14*np.array([-1,1])+np.array([28-5,0]),5,5,fill=False,linestyle='solid',color='r'))
 
       fig.canvas.draw()
       fig.subplots_adjust(hspace=0)  #No horizontal space between subplots
       fig.subplots_adjust(wspace=0)  #No vertical space between subplots
+      if save_dir is not None:
+        plt.savefig(save_dir+'canvas'+str(nextY[0])+str(y+10)+'.png')
       time.sleep(0.1)
       plt.pause(0.0001)
-    ax.remove()
+#    ax.remove()
     return
