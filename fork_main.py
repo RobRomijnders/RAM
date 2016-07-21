@@ -124,6 +124,8 @@ else:
             ax.add_patch(patches.Rectangle((sampled_locs_fetched[0,y,:]+1)*14,5,5,fill=False,linestyle='solid',color='r'))
 
             fig.canvas.draw()
+            fig.subplots_adjust(hspace=0)  #No horizontal space between subplots
+            fig.subplots_adjust(wspace=0)  #No vertical space between subplots
             time.sleep(0.1)
             plt.pause(0.0001)
         else:
