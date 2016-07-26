@@ -88,7 +88,7 @@ else:
         evaluate()
       if draw and animate:
         plt.close('all')
-        model.draw_ram(f_glimpse_images_fetched,prediction_labels_fetched,sampled_locs_fetched,nextX,nextY,save_dir)
+        model.draw_ram(f_glimpse_images_fetched,prediction_labels_fetched,sampled_locs_fetched,nextX,nextY,save_dir=save_dir)
       print('Step %6.0f: cost = %6.2f(%6.2f) reward = %4.1f(%4.2f) ' % (step, cost_fetched,cost_ma, reward_fetched,reward_ma))
 
       summary_str = sess.run(model.summary_op, feed_dict=feed_dict)

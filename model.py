@@ -59,7 +59,7 @@ class Model():
 
 
     def sensor_glimpse(img, normLoc):
-      loc = ((normLoc + 1) / 2) * mnist_size # normLoc coordinates are between -1 and 1
+      loc = ((normLoc + 1.0) / 2.0) * mnist_size # normLoc coordinates are between -1 and 1
       loc = tf.cast(loc, tf.int32)
 
       img = tf.reshape(img, (self.batch_size, mnist_size, mnist_size, channels))
@@ -77,7 +77,7 @@ class Model():
             max_radius * 2 + mnist_size, max_radius * 2 + mnist_size)
 
         for i in xrange(self.depth):
-          r = int(min_radius * (2 ** (i)))
+          r = int(min_radius * (2 ** (i-1)))
 
           d_raw = 2 * r
           d = tf.constant(d_raw, shape=[1])
@@ -90,9 +90,8 @@ class Model():
 
           one_img2 = tf.reshape(one_img, (one_img.get_shape()[0].value,\
               one_img.get_shape()[1].value))
-
           # crop image to (d x d)
-          zoom = tf.slice(one_img2, adjusted_loc, d)
+          zoom = tf.slice(one_img2, adjusted_loc, d, name='crop_image')
 
           # resize cropped image to (sensorBandwidth x sensorBandwidth)
           zoom = tf.image.resize_bilinear(tf.reshape(zoom, (1, d_raw, d_raw, 1)), (self.sensorBandwidth, self.sensorBandwidth))
@@ -134,6 +133,9 @@ class Model():
       mean_locs.append(mean_loc)
 
       sample_loc = mean_loc + tf.random_normal(mean_loc.get_shape(), 0, loc_sd)
+
+      #Random perturbations cannot exceed the image
+      #sample_loc = tf.clip_by_value(sample_loc, -1.0, 1.0)
 
       self.sampled_locs.append(sample_loc)
 
@@ -248,7 +250,7 @@ class Model():
       fig.subplots_adjust(hspace=0)  #No horizontal space between subplots
       fig.subplots_adjust(wspace=0)  #No vertical space between subplots
       if save_dir is not None:
-        plt.savefig(save_dir+'canvas'+str(10+y)+'.png')
+        plt.savefig(save_dir+'canvas'+str(nextY[0])+str(10+y)+'.png')
       time.sleep(0.1)
       plt.pause(0.0001)
     ax.remove()
