@@ -62,6 +62,9 @@ class Model():
       loc = ((normLoc + 1.0) / 2.0) * mnist_size # normLoc coordinates are between -1 and 1
       loc = tf.cast(loc, tf.int32)
 
+      #Random perturbations cannot exceed the image
+      loc = tf.clip_by_value(loc, 0, 28)
+
       img = tf.reshape(img, (self.batch_size, mnist_size, mnist_size, channels))
 
       zooms = []
@@ -134,8 +137,7 @@ class Model():
 
       sample_loc = mean_loc + tf.random_normal(mean_loc.get_shape(), 0, loc_sd)
 
-      #Random perturbations cannot exceed the image
-      #sample_loc = tf.clip_by_value(sample_loc, -1.0, 1.0)
+
 
       self.sampled_locs.append(sample_loc)
 
@@ -169,9 +171,13 @@ class Model():
 
     # convert list of tensors to one big tensor
     self.sampled_locs = tf.concat(0, self.sampled_locs)
-    self.sampled_locs = tf.reshape(self.sampled_locs, (self.batch_size, self.glimpses, 2))
+   # self.sampled_locs = tf.reshape(self.sampled_locs, (self.batch_size, self.glimpses, 2))
+    self.sampled_locs = tf.reshape(self.sampled_locs, (self.glimpses, self.batch_size,2))
+    self.sampled_locs = tf.transpose(self.sampled_locs, [1,0,2])
     mean_locs = tf.concat(0, mean_locs)
-    mean_locs = tf.reshape(mean_locs, (self.batch_size, self.glimpses, 2))
+    #mean_locs = tf.reshape(mean_locs, (self.batch_size, self.glimpses, 2))
+    mean_locs = tf.reshape(mean_locs, (self.glimpses, self.batch_size, 2))
+    mean_locs = tf.transpose(mean_locs, [1,0,2])
     self.glimpse_images = tf.concat(0, self.glimpse_images)
 
 
@@ -244,7 +250,7 @@ class Model():
       ax.imshow(np.reshape(nextX[0],(28,28)), cmap=plt.get_cmap('gray'))
 #      ax.add_patch(patches.Rectangle(loc,5,5,fill=False,linestyle='solid',color='r'))
       loc = ((sampled_locs_fetched[0,y,:]+1)*14).astype(int)
-      ax.add_patch(patches.Rectangle(loc,5,5,fill=False,linestyle='solid',color='r'))
+      ax.add_patch(patches.Rectangle(np.flipud(loc)-np.array([2,2]),4,4,fill=False,linestyle='solid',color='r'))
 
       fig.canvas.draw()
       fig.subplots_adjust(hspace=0)  #No horizontal space between subplots
@@ -253,5 +259,5 @@ class Model():
         plt.savefig(save_dir+'canvas'+str(nextY[0])+str(10+y)+'.png')
       time.sleep(0.1)
       plt.pause(0.0001)
-    ax.remove()
+    #ax.remove()
     return
