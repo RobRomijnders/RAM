@@ -31,14 +31,14 @@ start_step = 0
 max_iters = 1000000
 config = {}
 config['batch_size'] = batch_size = 10
-config['glimpses'] = glimpses = 6
+config['glimpses'] = glimpses = 8
 config['depth'] = depth = 3
 config['sensorBandwidth'] = sensorBandwidth = 8
-config['min_radius'] = min_radius = 2 # zooms -> min_radius * 2**<depth_level>
+config['min_radius'] = min_radius = 4 # zooms -> min_radius * 2**<depth_level>
 config['base'] = base = 1.5
 config['max_radius'] = max_radius = min_radius * (2 ** (depth - 1))
 config['loc_sd_final'] = 0.1
-config['loc_sd_start'] = 0.12
+config['loc_sd_start'] = 0.2
 
 
 

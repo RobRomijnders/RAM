@@ -208,7 +208,7 @@ class Model():
     J = tf.reduce_mean(J, 0)
     self.cost = -J
 
-    lrate = tf.train.exponential_decay(lr,global_step,10000,0.5,staircase=True)
+    lrate = tf.train.exponential_decay(lr,global_step,1000,0.8,staircase=False)
 
     optimizer = tf.train.AdamOptimizer(lrate)
     self.train_op = optimizer.minimize(self.cost, global_step=global_step)
