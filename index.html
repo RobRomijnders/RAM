@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>RAM by RobRomijnders</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <meta name="viewport" content="width=device-width">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>RAM</h1>
+        <p>Recurrent models of visual attention</p>
+
+        <p class="view"><a href="https://github.com/RobRomijnders/RAM">View the Project on GitHub <small>RobRomijnders/RAM</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/RobRomijnders/RAM/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/RobRomijnders/RAM/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/RobRomijnders/RAM">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h2>
+<a id="recurrent-model-of-visual-attention" class="anchor" href="#recurrent-model-of-visual-attention" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Recurrent model of visual attention</h2>
+
+<p>This post implement the Recurrent model of visual attention paper by <a href="http://arxiv.org/abs/1406.6247">Mnih, 2014</a>. Like the authors, we refer to this algorithm as Recurrent Attention model (RAM).</p>
+
+<h2>
+<a id="ram" class="anchor" href="#ram" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>RAM</h2>
+
+<p>The RAM continues the work in attention models for images. Conventional approaches for image classification scale poorly with image size. Humans do not absorb images in a one-shot fashion. We scan the image and attend to part of interest. The RAM models this attention seeking.</p>
+
+<p>Our previous posts treat attention models too. The <a href="https://robromijnders.github.io/DRAW/">DRAW attends to images via Gaussian filters</a> and another post show <a href="https://robromijnders.github.io/attention/">three implementations of attention using feature keys</a>. In the RAM paper, the authors observe that humans make decisions on <em>where</em> to look. Next, the eye focuses on a thumb-sizes patch. All other information gets blurred. </p>
+
+<p>These processing forms the basis for RAM. The fovea-like extracts center around a point that is conditioned on the state of a network. More specifically, from the hidden state of an LSTM follows a coordinate vector. The corresponding fovea-like extracts inputs to the LSTM at the next time-step.</p>
+
+<p>Our model of the fovea is non-differentiable. However, stochasticity in the coordinate-vector allows us to use the REINFORCE rule. Reward for this Reinforcement agent follows from a correct prediction after a fixed number of time-steps.</p>
+
+<h2>
+<a id="results" class="anchor" href="#results" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Results</h2>
+
+<p>The implementation builds upon <a href="https://github.com/seann999/tensorflow_mnist_ram/blob/master/ram.py">this work.</a> Likewise, our visualization resembles his plots.
+<img src="https://github.com/RobRomijnders/RAM/blob/master/canvas/RAM_show.gif?raw=true" alt="RAM_gif">
+The red squares highlight where the network centers its glimpses. I trained this network on an old laptop for a couple of hours. With more computing power, you might decrease the glimpse-size, allow for more time-steps. Those changes will make the RAM more resemble the human vision system.
+The corresponding classification achieves 87% accuracy on MNIST</p>
+
+<p>As always, I am curious to any comments and questions. Reach me at <a href="mailto:romijndersrob@gmail.com">romijndersrob@gmail.com</a></p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/RobRomijnders">RobRomijnders</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
