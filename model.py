@@ -37,7 +37,12 @@ class Model():
 
     mnist_size = 28
 
-    loc_sd = 0.1
+    loc_sd_final = config['loc_sd_final']
+    loc_sd_start = config['loc_sd_start']
+    global_step = tf.Variable(0,trainable=False)
+    loc_sd = tf.train.exponential_decay(loc_sd_start-loc_sd_final, global_step, 1000, 0.8)+ loc_sd_final
+
+
     mean_locs = []
     self.sampled_locs = [] # ~N(mean_locs[.], loc_sd)
     self.glimpse_images = [] # to show in window
@@ -151,6 +156,7 @@ class Model():
 
     self.image = tf.placeholder(tf.float32, shape=(self.batch_size, 28 * 28), name="images")
     self.labels = tf.placeholder(tf.int64, shape=(self.batch_size), name="labels")
+    self.keep_prob = tf.placeholder("float", name = 'Drop_out')
 
     h_l_out = weight_variable((cell_out_size, 2))
     b_l_out = tf.Variable(tf.constant(0.1,shape=[2]))
@@ -160,6 +166,7 @@ class Model():
 
     initial_glimpse = get_glimpse(initial_loc)
     lstm_cell = tf.nn.rnn_cell.LSTMCell(cell_size, g_size, num_proj=cell_out_size)
+    lstm_cell = tf.nn.rnn_cell.DropoutWrapper(lstm_cell,output_keep_prob=self.keep_prob)
     initial_state = lstm_cell.zero_state(self.batch_size, tf.float32)
 
     inputs = [initial_glimpse]
@@ -201,11 +208,10 @@ class Model():
     J = tf.reduce_mean(J, 0)
     self.cost = -J
 
-    global_step = tf.Variable(0,trainable=False)
-    lrate = tf.train.exponential_decay(lr,global_step,1000,0.5,staircase=True)
+    lrate = tf.train.exponential_decay(lr,global_step,10000,0.5,staircase=True)
 
     optimizer = tf.train.AdamOptimizer(lrate)
-    self.train_op = optimizer.minimize(self.cost)
+    self.train_op = optimizer.minimize(self.cost, global_step=global_step)
 
 
     tf.scalar_summary("reward", self.reward)

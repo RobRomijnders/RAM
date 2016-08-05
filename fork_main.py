@@ -35,7 +35,10 @@ config['glimpses'] = glimpses = 6
 config['depth'] = depth = 3
 config['sensorBandwidth'] = sensorBandwidth = 8
 config['min_radius'] = min_radius = 2 # zooms -> min_radius * 2**<depth_level>
+config['base'] = base = 1.5
 config['max_radius'] = max_radius = min_radius * (2 ** (depth - 1))
+config['loc_sd_final'] = 0.1
+config['loc_sd_start'] = 0.12
 
 
 
@@ -58,7 +61,7 @@ def evaluate():
 
   for i in xrange(batches_in_epoch):
       nextX, nextY = dataset.test.next_batch(batch_size)
-      feed_dict = {model.image: nextX, model.labels: nextY}
+      feed_dict = {model.image: nextX, model.labels: nextY, model.keep_prob: 1.0}
       r = sess.run(model.reward, feed_dict=feed_dict)
       accuracy += r
 
@@ -74,7 +77,7 @@ else:
   cost_ma = 0.0
   for step in xrange(start_step + 1, max_iters):
     nextX, nextY = dataset.train.next_batch(batch_size)
-    feed_dict = {model.image: nextX, model.labels: nextY}
+    feed_dict = {model.image: nextX, model.labels: nextY, model.keep_prob: 0.8}
     fetches = [model.train_op, model.cost, model.reward, model.labels_pred, model.glimpse_images, model.locs]
 
     results = sess.run(fetches, feed_dict=feed_dict)
