@@ -38,11 +38,11 @@
 
 <p>The RAM continues the work in attention models for images. Conventional approaches for image classification scale poorly with image size. Humans do not absorb images in a one-shot fashion. We scan the image and attend to part of interest. The RAM models this attention seeking.</p>
 
-<p>Our previous posts treat attention models too. The <a href="https://robromijnders.github.io/DRAW/">DRAW attends to images via Gaussian filters</a> and another post show <a href="https://robromijnders.github.io/attention/">three implementations of attention using feature keys</a>. In the RAM paper, the authors observe that humans make decisions on <em>where</em> to look. Next, the eye focuses on a thumb-sizes patch. All other information gets blurred. </p>
+<p>Our previous posts treat attention models too. The <a href="https://robromijnders.github.io/DRAW/">DRAW attends to images via Gaussian filters</a>. Another post shows <a href="https://robromijnders.github.io/attention/">three implementations of attention using feature keys</a>. In the RAM paper, the authors observe that humans make decisions on <em>where</em> to look. Next, the eye focuses on a thumb-sizes patch. All other information gets blurred. </p>
 
-<p>These processing forms the basis for RAM. The fovea-like extracts center around a point that is conditioned on the state of a network. More specifically, from the hidden state of an LSTM follows a coordinate vector. The corresponding fovea-like extracts inputs to the LSTM at the next time-step.</p>
+<p>These processing forms the basis for RAM. The fovea-like extracts center around a point that conditions on the state of a network. The hidden state of an LSTM maps to a coordinate vector. The corresponding fovea-like extracts inputs to the LSTM at the next time-step.</p>
 
-<p>Our model of the fovea is non-differentiable. However, stochasticity in the coordinate-vector allows us to use the REINFORCE rule. Reward for this Reinforcement agent follows from a correct prediction after a fixed number of time-steps.</p>
+<p>Our model of the fovea is non-differentiable. The stochasticity in the coordinate-vector allows us to use the REINFORCE rule. For this Reinforcement agent, the reward follows from a correct prediction after a fixed number of time-steps.</p>
 
 <h2>
 <a id="results" class="anchor" href="#results" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Results</h2>
