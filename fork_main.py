@@ -26,21 +26,20 @@ elif 'rob-com' in socket.gethostname():
   save_dir = '/home/rob/Documents/RAM/canvas/'
 
 
-#dataset = tf_mnist_loader.read_data_sets("mnist_data")
 from tensorflow.examples.tutorials import mnist
-from model import Model
+from model_conv import Model
 dataset = mnist.input_data.read_data_sets(data_directory, one_hot=False)
 start_step = 0
 max_iters = 1000000
 config = {}
 config['batch_size'] = batch_size = 10
-config['glimpses'] = glimpses = 8
+config['glimpses'] = glimpses = 6
 config['depth'] = depth = 3
 config['sensorBandwidth'] = sensorBandwidth = 8
-config['min_radius'] = min_radius = 4 # zooms -> min_radius * 2**<depth_level>
+config['min_radius'] = min_radius = 3 # zooms -> min_radius * 2**<depth_level>
 config['base'] = base = 1.5
 config['max_radius'] = max_radius = min_radius * (2 ** (depth - 1))
-config['loc_sd_final'] = 0.1
+config['loc_sd_final'] = 0.08
 config['loc_sd_start'] = 0.2
 
 
@@ -48,7 +47,6 @@ config['loc_sd_start'] = 0.2
 
 # to enable visualization, set draw to True
 eval_only = False
-animate = True
 draw = True
 
 
@@ -92,7 +90,7 @@ else:
     if step % 500 == 0:
       if step % 5000 == 0:
         evaluate()
-      if draw and animate:
+      if draw:
         plt.close('all')
         model.draw_ram(f_glimpse_images_fetched,prediction_labels_fetched,sampled_locs_fetched,nextX,nextY,save_dir=save_dir)
       print('Step %6.0f: cost = %6.2f(%6.2f) reward = %4.1f(%4.2f) ' % (step, cost_fetched,cost_ma, reward_fetched,reward_ma))

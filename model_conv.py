@@ -51,7 +51,7 @@ class Model():
 
 
     def weight_variable(shape,name=None):
-      initial = tf.truncated_normal(shape, stddev=1.0/shape[0]) # for now
+      initial = tf.truncated_normal(shape, stddev=1.0/shape[0])
       return tf.Variable(initial,name=name)
 
 
@@ -61,12 +61,12 @@ class Model():
     # - b is a trainable bias-vector
     # l postfixes for LOCATION
     # g postfixes for GLIMPSE
-    Wl1 = weight_variable((2, hl_size),name='Wl1')
-    bl1 = tf.Variable(tf.constant(0.1, shape=[hl_size]),name='bl1')
-    Wg1 = weight_variable((BW, hg_size),name='Wg1')
-    bg1 = tf.Variable(tf.constant(0.1,shape=[hg_size]),name='bg1')
-    Wg2 = weight_variable((hg_size, g_size),name='Wg2')
-    bg2 = tf.Variable(tf.constant(0.1,shape=[g_size]),name='bg2')
+    Wl1 = weight_variable((2, g_size),name='Wl1')
+    bl1 = tf.Variable(tf.constant(0.1, shape=[g_size]),name='bl1')
+    Wg1 = tf.get_variable("Wg1", shape=[3,3,3,4],initializer=tf.contrib.layers.xavier_initializer())
+    bg1 = tf.Variable(tf.constant(0.1,shape=[4]),name='bg1')
+    Wg2 = tf.get_variable("Wg2", shape=[3,3,4,4],initializer=tf.contrib.layers.xavier_initializer())
+    bg2 = tf.Variable(tf.constant(0.1,shape=[4]),name='bg2')
     Wl2 = weight_variable((hl_size, g_size),name='Wl2')
     bl2 = tf.Variable(tf.constant(0.1,shape=[g_size]),name='bl2')
     Wl_out = weight_variable((cell_out_size, 2),name='Wl_out')
@@ -126,23 +126,19 @@ class Model():
 
     def get_glimpse(loc):
       glimpse_input = sensor_glimpse(self.image, loc)
-      print(glimpse_input)
-      glimpse_input = tf.reshape(glimpse_input, (self.batch_size, BW))
-      hg = tf.nn.relu(tf.nn.xw_plus_b(glimpse_input, Wg1,bg1))
+      glimpse_input = tf.transpose(glimpse_input,perm=[0,2,3,1])
+#      glimpse_input = tf.reshape(glimpse_input, (self.batch_size, BW))
+      hg1 = tf.nn.relu(tf.nn.conv2d(glimpse_input, Wg1,[1,1,1,1],'SAME')+bg1)
+      hg2 = tf.nn.relu(tf.nn.conv2d(hg1, Wg2,[1,1,1,1],'SAME')+bg2)
       hl = tf.nn.relu(tf.nn.xw_plus_b(loc, Wl1,bl1))
-      g = tf.nn.relu(tf.nn.xw_plus_b(hg, Wg2,bg2) + tf.nn.xw_plus_b(hl, Wl2,bl2))
+      g = hl + tf.reshape(hg2,[self.batch_size,g_size])
       return g
 
     def get_next_input(output, i):
       mean_loc = tf.tanh(tf.nn.xw_plus_b(output, Wl_out,bl_out))
       mean_locs.append(mean_loc)
-
       sample_loc = mean_loc + tf.random_normal(mean_loc.get_shape(), 0, loc_sd)
-
-
-
       self.sampled_locs.append(sample_loc)
-
       return get_glimpse(sample_loc)
 
     def gaussian_pdf(mean, sample):
@@ -156,7 +152,8 @@ class Model():
 
 
 
-    initial_loc = tf.random_uniform((self.batch_size, 2), minval=-1, maxval=1)
+#    initial_loc = tf.random_uniform((self.batch_size, 2), minval=-0.5, maxval=0.5)
+    initial_loc = tf.constant(0.0,dtype=tf.float32,shape=[self.batch_size,2])
 
     initial_glimpse = get_glimpse(initial_loc)
     lstm_cell = tf.nn.rnn_cell.LSTMCell(cell_size, g_size)
@@ -201,11 +198,11 @@ class Model():
     R = tf.reshape(R, (self.batch_size, 1))
     J = tf.log(p_loc + 1e-9) * R
     J = tf.reduce_sum(J, 1)
-    tvars = tf.trainable_variables()
-    self.grads = tf.gradients(J,tvars)
-    grads_zip = zip(self.grads,tvars)
-    for g,variable in grads_zip:
-      print(variable.name)
+#    tvars = tf.trainable_variables()
+#    self.grads = tf.gradients(cost_sm,tvars)
+#    grads_zip = zip(self.grads,tvars)
+#    for g,variable in grads_zip:
+#      print(variable.name)
     J_comb = J  - cost_sm
     J_comb = tf.reduce_mean(J_comb, 0)
     self.cost = -J_comb
@@ -226,46 +223,43 @@ class Model():
   def draw_ram(self,f_glimpse_images_fetched,prediction_labels_fetched,sampled_locs_fetched,nextX,nextY,save_dir=None):
     colors = ['r','g']
     fig = plt.figure()
-#    txt = fig.suptitle("-", fontsize=36, fontweight='bold')
     plt.show()
-    plt.subplots_adjust(top=0.7)
     plotImgs = []
-
     f_glimpse_images = np.reshape(f_glimpse_images_fetched, (self.glimpses + 1, self.batch_size, self.depth, self.sensorBW, self.sensorBW)) #steps, THEN batch
     fillList = False
 
     if len(plotImgs) == 0:
       fillList = True
-
+    ind = np.random.choice(self.batch_size)
     # display first in mini-batch
     for y in xrange(self.glimpses):
-      eq = int(prediction_labels_fetched[0] ==  nextY[0])
+      eq = int(prediction_labels_fetched[ind] ==  nextY[ind])
       for x in xrange(self.depth):
         plt.subplot(1, 4, x + 1)
+#        print(fillList)
         if fillList:
-          plotImg = plt.imshow(f_glimpse_images[y, 0, x], cmap=plt.get_cmap('gray'), interpolation="nearest")
+          plotImg = plt.imshow(f_glimpse_images[y, ind, x], cmap=plt.get_cmap('gray'), interpolation="nearest", shape=(28,28))
           plotImg.autoscale()
           plotImg.axes.get_xaxis().set_visible(False)
           plotImg.axes.get_yaxis().set_visible(False)
           plotImgs.append(plotImg)
         else:
-          plotImgs[x].set_data(f_glimpse_images[y, 0, x])
+          plotImgs[x].set_data(f_glimpse_images[y, ind, x])
           plotImgs[x].autoscale()
 
       fillList = False
-
       ax = fig.add_subplot(144)
-      ax.imshow(np.reshape(nextX[0],(28,28)), cmap=plt.get_cmap('gray'))
+      ax.imshow(np.reshape(nextX[ind],(28,28)), cmap=plt.get_cmap('gray'))
       ax.axes.get_xaxis().set_visible(False)
       ax.axes.get_yaxis().set_visible(False)
-      loc = ((sampled_locs_fetched[0,y,:]+1)*14).astype(int)
+      loc = ((sampled_locs_fetched[ind,y,:]+1)*14).astype(int)
       ax.add_patch(patches.Rectangle(np.flipud(loc)-np.array([2,2]),4,4,fill=False,linestyle='solid',color=colors[eq]))
 
       fig.canvas.draw()
       fig.subplots_adjust(hspace=0)  #No horizontal space between subplots
       fig.subplots_adjust(wspace=0)  #No vertical space between subplots
       if save_dir is not None:
-        plt.savefig(save_dir+'canvas'+str(nextY[0])+str(10+y)+'.png')
+        plt.savefig(save_dir+'canvas'+str(nextY[ind])+str(10+y)+'.png')
       time.sleep(0.1)
       plt.pause(0.0001)
     #ax.remove()
