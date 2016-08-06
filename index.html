@@ -52,6 +52,21 @@
 The red squares highlight where the network centers its glimpses. I trained this network on an old laptop for a couple of hours. With more computing power, you might decrease the glimpse-size, allow for more time-steps. Those changes will make the RAM more resemble the human vision system.
 The corresponding classification achieves 87% accuracy on MNIST</p>
 
+<h2>
+<a id="discussion" class="anchor" href="#discussion" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Discussion</h2>
+
+<p>Initially, I learned from <a href="https://github.com/seann999/tensorflow_mnist_ram/blob/master/ram.py">this implementation</a>. This list summarizes my main changes:</p>
+
+<ul>
+<li>I changed the reshaping of the sample locations. Sean's implementation incorrectly reshapes the Tensor <em>sampled_locs</em>. The network can still learn. During visualization, however, you'll run into non-trivial transformations.</li>
+<li>All linear transformations benefit from an intercept too. I find that biases improve the performance when using linear transformations</li>
+<li>Two convolutional layers replace the fully connected layers in the glimpse network. The authors of RAM propose this idea too in their <a href="http://arxiv.org/abs/1412.7755v2">follow-up paper</a>
+</li>
+<li>I add learning-rate decay. Also the variance of the noise perturbing the sample locations now decays with <em>global_step</em>
+</li>
+<li>Tensorflow has a quick implementation for Softmax mapping to mutually-exclusive labels. I made this work for this code too.</li>
+</ul>
+
 <p>As always, I am curious to any comments and questions. Reach me at <a href="mailto:romijndersrob@gmail.com">romijndersrob@gmail.com</a></p>
       </section>
       <footer>
