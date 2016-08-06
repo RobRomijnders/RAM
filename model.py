@@ -116,6 +116,7 @@ class Model():
 
     def get_glimpse(loc):
       glimpse_input = sensor_glimpse(self.image, loc)
+      glimpse_input = tf.stop_gradient(glimpse_input)
 
       glimpse_input = tf.reshape(glimpse_input, (self.batch_size, totalSensorBandwidth))
 
@@ -204,9 +205,10 @@ class Model():
 
     R = tf.reshape(R, (self.batch_size, 1))
     J = tf.log(p_loc + 1e-9) * R
-    J = tf.reduce_sum(J, 1) - cost_sm
-    J = tf.reduce_mean(J, 0)
-    self.cost = -J
+    J = tf.reduce_sum(J, 1)
+    J_comb = J  - cost_sm
+    J_comb = tf.reduce_mean(J_comb, 0)
+    self.cost = -J_comb
 
     lrate = tf.train.exponential_decay(lr,global_step,1000,0.8,staircase=False)
 

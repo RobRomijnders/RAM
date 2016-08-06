@@ -3,6 +3,9 @@
 Created on Tue Jul 19 19:54:35 2016
 
 @author: rob
+
+Credits to
+https://github.com/seann999/tensorflow_mnist_ram/blob/master/ram.py
 """
 
 import tensorflow as tf
