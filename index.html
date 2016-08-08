@@ -65,6 +65,7 @@ The corresponding classification achieves 87% accuracy on MNIST</p>
 <li>I add learning-rate decay. Also the variance of the noise perturbing the sample locations now decays with <em>global_step</em>
 </li>
 <li>Tensorflow has a quick implementation for Softmax mapping to mutually-exclusive labels. I made this work for this code too.</li>
+<li>I re-route the gradient in a crucial way. In Sean's implementation, the reward of the REINFORCE does not backpropagate to the location network. Contratily, the glimpse network does backpropagate into the location network. I add a <em>tf.stop_gradient()</em> such that the glimpse network cannot do this anymore. The reason that REINFORCE does not backpropagate into the location network is that the signals block eachother due to the symmetry in the <em>gaussian_pdf</em> computation. I add another <em>tf.stop_gradient()</em> in this function to prevent this.</li>
 </ul>
 
 <p>As always, I am curious to any comments and questions. Reach me at <a href="mailto:romijndersrob@gmail.com">romijndersrob@gmail.com</a></p>
