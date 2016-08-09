@@ -111,7 +111,7 @@ class Model():
           zoom = tf.slice(one_img2, adjusted_loc, d, name='crop_image')
 
           # resize cropped image to (sensorBW x sensorBW)
-          zoom = tf.image.resize_bilinear(tf.reshape(zoom, (1, d_raw, d_raw, 1)), (self.sensorBW, self.sensorBW))
+          zoom = tf.image.resize_nearest_neighbor(tf.reshape(zoom, (1, d_raw, d_raw, 1)), (self.sensorBW, self.sensorBW))
           zoom = tf.reshape(zoom, (self.sensorBW, self.sensorBW))
           imgZooms.append(zoom)
 
@@ -125,6 +125,7 @@ class Model():
       return zooms
 
     def get_glimpse(loc):
+      loc = tf.stop_gradient(loc)
       glimpse_input = sensor_glimpse(self.image, loc)
       glimpse_input = tf.transpose(glimpse_input,perm=[0,2,3,1])
 #      glimpse_input = tf.reshape(glimpse_input, (self.batch_size, BW))
