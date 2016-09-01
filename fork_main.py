@@ -11,14 +11,14 @@ https://github.com/seann999/tensorflow_mnist_ram/blob/master/ram.py
 import tensorflow as tf
 #import tf_mnist_loader
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import numpy as np
-import time
 import sys
 import socket
 if 'rob-laptop' in socket.gethostname():
   data_directory = '/home/rob/Dropbox/ConvNets/tf/MNIST'
   sys.path.append('/home/rob/Dropbox/ml_projects/RAM/')
+  sys.path.append('/home/rob/Dropbox/ml_projects/RAM_cifar/')
+
   save_dir = '/home/rob/Dropbox/ml_projects/RAM/canvas/'
 elif 'rob-com' in socket.gethostname():
   data_directory = '/home/rob/Documents/RAM/MNIST'

@@ -92,7 +92,6 @@ class Model():
         # pad image with zeros
         one_img = tf.image.pad_to_bounding_box(one_img, offset, offset, \
             max_radius * 2 + mnist_size, max_radius * 2 + mnist_size)
-
         for i in xrange(self.depth):
           r = int(min_radius * (2 ** (i-1)))
 

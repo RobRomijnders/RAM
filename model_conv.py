@@ -107,6 +107,7 @@ class Model():
 
           one_img2 = tf.reshape(one_img, (one_img.get_shape()[0].value,\
               one_img.get_shape()[1].value))
+
           # crop image to (d x d)
           zoom = tf.slice(one_img2, adjusted_loc, d, name='crop_image')
 
@@ -121,7 +122,6 @@ class Model():
       zooms = tf.stop_gradient(zooms)
 
       self.glimpse_images.append(zooms)
-
       return zooms
 
     def get_glimpse(loc):
